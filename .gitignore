@@ -1,0 +1,16 @@
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Models
+vision/weights/*.pt
+
+# Videos
+vision/data/*.mp4
+vision/output/*.mp4
+
+# VS Code
+.vscode/
