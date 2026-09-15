@@ -1,17 +1,21 @@
 import cv2
-import os
 
-from detector import DroneDetector
+from detector import VehicleDetector
+from tracker import VehicleTracker
 from visualizer import Visualizer
 
-INPUT_VIDEO = "../data/traffic.mp4"
-OUTPUT_DIR = "../output"
-OUTPUT_VIDEO = "../output/detection.mp4"
-
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-detector = DroneDetector()
+# ---------------------------------------
+# Initialize modules
+# ---------------------------------------
+detector = VehicleDetector()
+tracker = VehicleTracker()
 visualizer = Visualizer()
+
+# ---------------------------------------
+# Input / Output
+# ---------------------------------------
+INPUT_VIDEO = "../data/traffic.mp4"
+OUTPUT_VIDEO = "../output/detection.mp4"
 
 cap = cv2.VideoCapture(INPUT_VIDEO)
 
@@ -26,17 +30,32 @@ writer = cv2.VideoWriter(
     (width, height)
 )
 
+# ---------------------------------------
+# Main Processing Loop
+# ---------------------------------------
 while True:
+
     ret, frame = cap.read()
     if not ret:
         break
 
+    # STEP 1 : Object Detection
     detections = detector.detect(frame)
-    frame = visualizer.draw(frame, detections)
 
+    # STEP 2 : Multi Object Tracking
+    tracks = tracker.update(detections)
+
+    # STEP 3 : Visualization
+    frame = visualizer.draw(frame, tracks)
+
+    # STEP 4 : Save frame
     writer.write(frame)
 
+# ---------------------------------------
+# Cleanup
+# ---------------------------------------
 cap.release()
 writer.release()
 
-print(f"Saved: {OUTPUT_VIDEO}")
+print("Sprint 2 completed successfully.")
+print(f"Output saved to: {OUTPUT_VIDEO}")

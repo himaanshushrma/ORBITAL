@@ -1,36 +1,47 @@
 import cv2
 
-CLASS_NAMES = {
-    2: "Car",
-    3: "Motorcycle",
-    5: "Bus",
-    7: "Truck"
-}
-
 class Visualizer:
 
-    def draw(self, frame, detections):
+    def draw(self, frame, tracks):
 
-        for det in detections:
+        for track in tracks:
 
-            x1, y1, x2, y2 = det["bbox"]
-            conf = det["confidence"]
-            cls = det["class_id"]
+            x1, y1, x2, y2 = track.bbox
 
-            if cls not in CLASS_NAMES:
-                continue
+            # Green bounding box
+            cv2.rectangle(
+                frame,
+                (x1, y1),
+                (x2, y2),
+                (0, 255, 0),
+                2
+            )
 
-            label = f"{CLASS_NAMES[cls]} {conf:.2f}"
+            # ID label
+            label = f"ID {track.id}"
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            (w, h), _ = cv2.getTextSize(
+                label,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                2
+            )
+
+            cv2.rectangle(
+                frame,
+                (x1, y1 - 25),
+                (x1 + w + 8, y1),
+                (0, 255, 0),
+                -1
+            )
 
             cv2.putText(
                 frame,
                 label,
-                (x1, y1 - 10),
+                (x1 + 4, y1 - 7),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
-                (0, 255, 0),
+                (0, 0, 0),
                 2
             )
 
