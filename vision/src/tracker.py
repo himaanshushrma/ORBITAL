@@ -1,95 +1,94 @@
-from dataclasses import dataclass
+"""
+=========================================================
+ORBITAL AI
+ByteTrack History Manager
+Sprint 4.1
 
-# =====================================================
-# ORBITAL - Vehicle Tracking Engine
-# Sprint 2.3 : Persistent ID Assignment
-# =====================================================
+Author : Himanshu Sharma
 
+Purpose:
+Store the movement history of every ByteTrack ID.
+ByteTrack generates IDs; this file only maintains trails.
+=========================================================
+"""
+
+from dataclasses import dataclass, field
+
+
+# =========================================================
+# Track Object
+# =========================================================
 @dataclass
 class Track:
+    """
+    Represents one tracked vehicle.
+    """
+
     id: int
     bbox: tuple
     class_id: int
     confidence: float
-    age: int = 0
+
+    # Stores previous center points for trajectory drawing
+    history: list = field(default_factory=list)
 
 
+# =========================================================
+# Vehicle Tracker
+# =========================================================
 class VehicleTracker:
 
     def __init__(self):
-        # Dictionary -> {id : Track}
-        self.tracks = {}
-        self.next_id = 1
+        """
+        Dictionary format
 
-    # -------------------------------------------------
-    # IoU (Intersection over Union)
-    # -------------------------------------------------
-    def calculate_iou(self, boxA, boxB):
+        histories = {
+            12 : [(x1,y1),(x2,y2)...],
+            45 : [...]
+        }
+        """
+        self.histories = {}
 
-        ax1, ay1, ax2, ay2 = boxA
-        bx1, by1, bx2, by2 = boxB
+        # Maximum trail length
+        self.max_history = 30
 
-        inter_x1 = max(ax1, bx1)
-        inter_y1 = max(ay1, by1)
-
-        inter_x2 = min(ax2, bx2)
-        inter_y2 = min(ay2, by2)
-
-        if inter_x2 <= inter_x1 or inter_y2 <= inter_y1:
-            return 0.0
-
-        intersection = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
-
-        areaA = (ax2 - ax1) * (ay2 - ay1)
-        areaB = (bx2 - bx1) * (by2 - by1)
-
-        union = areaA + areaB - intersection
-
-        return intersection / union
-
-    # -------------------------------------------------
-    # Assign persistent IDs to detections
-    # -------------------------------------------------
+    # -----------------------------------------------------
+    # Update histories using ByteTrack IDs
+    # -----------------------------------------------------
     def update(self, detections):
 
-        updated_tracks = {}
+        tracks = []
 
         for det in detections:
 
-            best_iou = 0
-            best_track = None
+            track_id = det["id"]
 
-            # Compare with existing tracks
-            for track in self.tracks.values():
+            x1, y1, x2, y2 = det["bbox"]
 
-                iou = self.calculate_iou(track.bbox, det["bbox"])
+            # Calculate center point
+            cx = (x1 + x2) // 2
+            cy = (y1 + y2) // 2
 
-                if iou > best_iou:
-                    best_iou = iou
-                    best_track = track
+            # Create history if vehicle appears first time
+            if track_id not in self.histories:
+                self.histories[track_id] = []
 
-            # Same vehicle
-            if best_iou > 0.30:
+            # Append latest position
+            self.histories[track_id].append((cx, cy))
 
-                best_track.bbox = det["bbox"]
-                best_track.confidence = det["confidence"]
-                best_track.age = 0
+            # Keep only last 30 points
+            if len(self.histories[track_id]) > self.max_history:
+                self.histories[track_id].pop(0)
 
-                updated_tracks[best_track.id] = best_track
-
-            # New vehicle
-            else:
-
-                new_track = Track(
-                    id=self.next_id,
+            # Convert detection dictionary into Track object
+            tracks.append(
+                Track(
+                    id=track_id,
                     bbox=det["bbox"],
                     class_id=det["class_id"],
-                    confidence=det["confidence"]
+                    confidence=det["confidence"],
+                    history=self.histories[track_id]
                 )
+            )
 
-                updated_tracks[self.next_id] = new_track
-                self.next_id += 1
-
-        self.tracks = updated_tracks
-
-        return list(self.tracks.values())
+        return tracks
