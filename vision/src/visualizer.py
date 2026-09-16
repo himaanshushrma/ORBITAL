@@ -2,13 +2,18 @@
 =========================================================
 ORBITAL AI
 Visualizer Module
-Sprint 5.0
+Sprint 6.2
 
+Author : Himanshu Sharma
+
+Purpose
+---------------------------------------------------------
 Draws:
-- Bounding boxes
-- Vehicle labels
-- Trajectory trails
-- Live speed (km/h)
+1. Bounding Boxes
+2. Vehicle Labels
+3. Lane Number
+4. Live Speed
+5. Trajectory Trails
 =========================================================
 """
 
@@ -19,6 +24,7 @@ class Visualizer:
 
     def __init__(self):
 
+        # Vehicle class names
         self.names = {
             2: "Car",
             3: "Bike",
@@ -26,15 +32,16 @@ class Visualizer:
             7: "Truck"
         }
 
+        # BGR Colors
         self.colors = {
-            2: (0, 255, 0),       # Car
-            3: (255, 255, 0),     # Bike
-            5: (0, 165, 255),     # Bus
-            7: (255, 0, 255)      # Truck
+            2: (0, 255, 0),        # Car
+            3: (255, 255, 0),      # Bike
+            5: (0, 165, 255),      # Bus
+            7: (255, 0, 255)       # Truck
         }
 
     # -----------------------------------------------------
-    # Draw every tracked vehicle
+    # Draw all tracked vehicles
     # -----------------------------------------------------
     def draw(self, frame, tracks, speeds):
 
@@ -45,36 +52,55 @@ class Visualizer:
             name = self.names.get(track.class_id, "Vehicle")
             color = self.colors.get(track.class_id, (255, 255, 255))
 
-            # Current speed
+            # ----------------------------
+            # Speed & Lane
+            # ----------------------------
             speed = speeds.get(track.id, 0)
 
+            lane = getattr(track, "lane", 0)
+
             # Label
-            label = f"{name} #{track.id} | {speed:.0f} km/h"
+            label = (
+                f"{name} #{track.id} | "
+                f"L{lane} | "
+                f"{speed:.0f} km/h"
+            )
 
-            # Bounding box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            # ----------------------------
+            # Bounding Box
+            # ----------------------------
+            cv2.rectangle(
+                frame,
+                (x1, y1),
+                (x2, y2),
+                color,
+                2
+            )
 
-            # Label background
+            # Label Background
             cv2.rectangle(
                 frame,
                 (x1, y1 - 24),
-                (x1 + 150, y1),
+                (x1 + 190, y1),
                 color,
                 -1
             )
 
-            # Label text
+            # Label Text
             cv2.putText(
                 frame,
                 label,
-                (x1 + 3, y1 - 7),
+                (x1 + 4, y1 - 7),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,
                 (0, 0, 0),
-                1
+                1,
+                cv2.LINE_AA
             )
 
-            # Trajectory
+            # ----------------------------
+            # Trajectory Trail
+            # ----------------------------
             if len(track.history) > 1:
 
                 for i in range(1, len(track.history)):
@@ -86,5 +112,17 @@ class Visualizer:
                         (255, 0, 0),
                         2
                     )
+
+            # Center Point
+            cx = (x1 + x2) // 2
+            cy = (y1 + y2) // 2
+
+            cv2.circle(
+                frame,
+                (cx, cy),
+                3,
+                (0, 0, 255),
+                -1
+            )
 
         return frame
