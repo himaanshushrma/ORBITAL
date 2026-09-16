@@ -2,7 +2,7 @@
 =========================================================
 ORBITAL AI
 Main Vision Pipeline
-Sprint 4.5 (Corrected)
+Sprint 5.0 (Final)
 
 Author : Himanshu Sharma
 
@@ -17,13 +17,16 @@ YOLO11 Detection
 ByteTrack IDs
    │
    ▼
+Vehicle Tracker
+   │
+   ▼
+Speed Estimation
+   │
+   ▼
 Traffic Analytics
    │
    ▼
-Visualizer + HUD
-   │
-   ▼
-MP4 + CSV Output
+HUD + CSV + MP4 Output
 =========================================================
 """
 
@@ -34,23 +37,7 @@ from tracker import VehicleTracker
 from analytics import TrafficAnalytics
 from visualizer import Visualizer
 from logger import TrafficLogger
-
-
-# =========================================================
-# Initialize Modules
-# =========================================================
-
-detector = VehicleDetector()
-
-tracker = VehicleTracker()
-
-# 1080p video → count line at Y = 540
-analytics = TrafficAnalytics(line_y=540)
-
-visualizer = Visualizer()
-
-logger = TrafficLogger()
-
+from speed import SpeedEstimator
 
 # =========================================================
 # Video Paths
@@ -58,7 +45,6 @@ logger = TrafficLogger()
 
 INPUT_VIDEO = "../data/traffic.mp4"
 OUTPUT_VIDEO = "../output/detection.mp4"
-
 
 # =========================================================
 # Open Video
@@ -80,6 +66,21 @@ writer = cv2.VideoWriter(
     (width, height)
 )
 
+# =========================================================
+# Initialize Modules
+# =========================================================
+
+detector = VehicleDetector()
+tracker = VehicleTracker()
+analytics = TrafficAnalytics(line_y=540)
+visualizer = Visualizer()
+logger = TrafficLogger()
+
+# Speed Estimator
+speed_estimator = SpeedEstimator(
+    fps=fps,
+    pixels_per_meter=8.5
+)
 
 # =========================================================
 # Vehicle Class Names
@@ -92,13 +93,11 @@ VEHICLE_NAMES = {
     7: "Truck"
 }
 
-
 # Prevent duplicate CSV entries
 logged_ids = set()
 
-
 # =========================================================
-# Main Loop
+# Main Processing Loop
 # =========================================================
 
 while True:
@@ -111,52 +110,54 @@ while True:
     # -----------------------------------------------------
     # STEP 1 : Detect Vehicles
     # -----------------------------------------------------
-
     detections = detector.detect(frame)
 
     # -----------------------------------------------------
-    # STEP 2 : Generate Stable Tracks
+    # STEP 2 : Update Stable Tracks
     # -----------------------------------------------------
-
     tracks = tracker.update(detections)
 
     # -----------------------------------------------------
-    # STEP 3 : Traffic Analytics
-    # IMPORTANT:
-    # Count using TRACKS, not detections.
+    # STEP 3 : Calculate Speed
     # -----------------------------------------------------
-
-    total_count = analytics.update(tracks)
+    speeds = speed_estimator.update(tracks)
 
     # -----------------------------------------------------
-    # STEP 4 : Log Newly Counted Vehicles
-    # Each ID is written only once.
+    # STEP 4 : Count Vehicles
     # -----------------------------------------------------
+    analytics.update(tracks)
 
+    # -----------------------------------------------------
+    # STEP 5 : CSV Logger
+    # -----------------------------------------------------
     timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
 
     for track in tracks:
 
-        if track.id in analytics.counted_ids and track.id not in logged_ids:
+        if (
+            track.id in analytics.counted_ids
+            and track.id not in logged_ids
+        ):
 
             logger.log(
                 vehicle_id=track.id,
-                vehicle_type=VEHICLE_NAMES.get(track.class_id, "Vehicle"),
+                vehicle_type=VEHICLE_NAMES.get(
+                    track.class_id,
+                    "Vehicle"
+                ),
                 timestamp=timestamp
             )
 
             logged_ids.add(track.id)
 
     # -----------------------------------------------------
-    # STEP 5 : Draw Bounding Boxes + Trails
+    # STEP 6 : Draw Vehicles
     # -----------------------------------------------------
-
-    frame = visualizer.draw(frame, tracks)
+    frame = visualizer.draw(frame, tracks, speeds)
 
     # -----------------------------------------------------
-    # STEP 6 : Draw Counting Line
+    # STEP 7 : Counting Line
     # -----------------------------------------------------
-
     cv2.line(
         frame,
         (0, analytics.line_y),
@@ -176,13 +177,12 @@ while True:
     )
 
     # -----------------------------------------------------
-    # STEP 7 : Advanced HUD
+    # STEP 8 : HUD Panel
     # -----------------------------------------------------
-
     cv2.rectangle(
         frame,
         (15, 15),
-        (280, 180),
+        (290, 185),
         (35, 35, 35),
         -1
     )
@@ -248,11 +248,9 @@ while True:
     )
 
     # -----------------------------------------------------
-    # STEP 8 : Save Frame
+    # STEP 9 : Save Frame
     # -----------------------------------------------------
-
     writer.write(frame)
-
 
 # =========================================================
 # Cleanup
@@ -262,7 +260,7 @@ cap.release()
 writer.release()
 
 print("=" * 55)
-print("ORBITAL AI - Sprint 4.5 Completed Successfully")
+print("ORBITAL AI - Sprint 5 Completed Successfully")
 print(f"Vehicles Counted : {analytics.total_count}")
 print(f"CSV Entries      : {len(logged_ids)}")
 print(f"Output Video     : {OUTPUT_VIDEO}")

@@ -1,96 +1,80 @@
 """
 =========================================================
 ORBITAL AI
-Visualization Engine
-Sprint 4.3
+Visualizer Module
+Sprint 5.0
 
-Author : Himanshu Sharma
-
-Purpose:
-Draw bounding boxes, labels and trajectory trails.
+Draws:
+- Bounding boxes
+- Vehicle labels
+- Trajectory trails
+- Live speed (km/h)
 =========================================================
 """
 
 import cv2
 
-# =========================================================
-# Vehicle Names (COCO)
-# =========================================================
-CLASS_NAMES = {
-    2: "Car",
-    3: "Bike",
-    5: "Bus",
-    7: "Truck"
-}
-
-# =========================================================
-# Colors (BGR)
-# =========================================================
-CLASS_COLORS = {
-    2: (0, 255, 0),      # Green
-    3: (255, 255, 0),    # Cyan
-    5: (0, 165, 255),    # Orange
-    7: (255, 0, 255)     # Purple
-}
-
 
 class Visualizer:
 
+    def __init__(self):
+
+        self.names = {
+            2: "Car",
+            3: "Bike",
+            5: "Bus",
+            7: "Truck"
+        }
+
+        self.colors = {
+            2: (0, 255, 0),       # Car
+            3: (255, 255, 0),     # Bike
+            5: (0, 165, 255),     # Bus
+            7: (255, 0, 255)      # Truck
+        }
+
     # -----------------------------------------------------
-    # Draw everything
+    # Draw every tracked vehicle
     # -----------------------------------------------------
-    def draw(self, frame, tracks):
+    def draw(self, frame, tracks, speeds):
 
         for track in tracks:
 
-            x1, y1, x2, y2 = map(int, track.bbox)
+            x1, y1, x2, y2 = track.bbox
 
-            vehicle = CLASS_NAMES.get(track.class_id, "Vehicle")
-            color = CLASS_COLORS.get(track.class_id, (255, 255, 255))
+            name = self.names.get(track.class_id, "Vehicle")
+            color = self.colors.get(track.class_id, (255, 255, 255))
 
-            label = f"{vehicle} #{track.id}"
+            # Current speed
+            speed = speeds.get(track.id, 0)
 
-            # Bounding Box
-            cv2.rectangle(
-                frame,
-                (x1, y1),
-                (x2, y2),
-                color,
-                2
-            )
+            # Label
+            label = f"{name} #{track.id} | {speed:.0f} km/h"
 
-            # Label size
-            (w, h), _ = cv2.getTextSize(
-                label,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                2
-            )
+            # Bounding box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
-            # Background
+            # Label background
             cv2.rectangle(
                 frame,
                 (x1, y1 - 24),
-                (x1 + w + 8, y1),
+                (x1 + 150, y1),
                 color,
                 -1
             )
 
-            # Text
+            # Label text
             cv2.putText(
                 frame,
                 label,
-                (x1 + 4, y1 - 6),
+                (x1 + 3, y1 - 7),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
+                0.45,
                 (0, 0, 0),
-                2,
-                cv2.LINE_AA
+                1
             )
 
-            # -------------------------------------------------
-            # Trajectory Trail
-            # -------------------------------------------------
+            # Trajectory
             if len(track.history) > 1:
 
                 for i in range(1, len(track.history)):
