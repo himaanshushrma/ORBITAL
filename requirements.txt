@@ -1,5 +1,8 @@
+streamlit
 ultralytics
-opencv-python
+opencv-python-headless
 numpy
-pandas
-matplotlib
+reportlab
+torch
+torchvision
+streamlit-image-coordinates
