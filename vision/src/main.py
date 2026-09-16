@@ -2,7 +2,7 @@
 =========================================================
 ORBITAL AI
 Main Vision Pipeline
-Sprint 5.0 (Final)
+Sprint 6.4 (Final)
 
 Author : Himanshu Sharma
 
@@ -14,10 +14,10 @@ Video
 YOLO11 Detection
    │
    ▼
-ByteTrack IDs
+ByteTrack Tracking
    │
    ▼
-Vehicle Tracker
+Lane Assignment
    │
    ▼
 Speed Estimation
@@ -26,11 +26,15 @@ Speed Estimation
 Traffic Analytics
    │
    ▼
+Lane Density + Congestion
+   │
+   ▼
 HUD + CSV + MP4 Output
 =========================================================
 """
 
 import cv2
+import os
 
 from detector import VehicleDetector
 from tracker import VehicleTracker
@@ -41,13 +45,14 @@ from speed import SpeedEstimator
 from lane import LaneDetector
 from density import LaneDensity
 from congestion import CongestionAnalyzer
+
 # =========================================================
 # Video Paths
 # =========================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-INPUT_VIDEO = "../data/traffic.mp4"
-OUTPUT_VIDEO = "../output/detection.mp4"
-
+INPUT_VIDEO = os.path.join(BASE_DIR, "../data/input.mp4")
+OUTPUT_VIDEO = os.path.join(BASE_DIR, "../output/detection.mp4")
 # =========================================================
 # Open Video
 # =========================================================
@@ -74,21 +79,23 @@ writer = cv2.VideoWriter(
 
 detector = VehicleDetector()
 tracker = VehicleTracker()
+
 analytics = TrafficAnalytics(line_y=540)
+
 visualizer = Visualizer()
 logger = TrafficLogger()
+
 lane_detector = LaneDetector()
 density = LaneDensity()
 congestion = CongestionAnalyzer()
 
-# Speed Estimator
 speed_estimator = SpeedEstimator(
     fps=fps,
     pixels_per_meter=8.5
 )
 
 # =========================================================
-# Vehicle Class Names
+# Vehicle Names
 # =========================================================
 
 VEHICLE_NAMES = {
@@ -102,7 +109,7 @@ VEHICLE_NAMES = {
 logged_ids = set()
 
 # =========================================================
-# Main Processing Loop
+# Main Loop
 # =========================================================
 
 while True:
@@ -118,31 +125,37 @@ while True:
     detections = detector.detect(frame)
 
     # -----------------------------------------------------
-    # STEP 2 : Create Stable Tracks
+    # STEP 2 : Stable Tracking
     # -----------------------------------------------------
     tracks = tracker.update(detections)
 
     # -----------------------------------------------------
-    # STEP 3 : Assign Lane Number
+    # STEP 3 : Lane Assignment
     # -----------------------------------------------------
     for track in tracks:
         track.lane = lane_detector.get_lane(track)
-    lane_counts = density.update(tracks)    
-    level, level_color = congestion.update(
-    density.total_visible()
-)
+
+    lane_counts = density.update(tracks)
+
     # -----------------------------------------------------
-    # STEP 4 : Calculate Speed
+    # STEP 4 : Congestion
+    # -----------------------------------------------------
+    level, level_color = congestion.update(
+        density.total_visible()
+    )
+
+    # -----------------------------------------------------
+    # STEP 5 : Speed Estimation
     # -----------------------------------------------------
     speeds = speed_estimator.update(tracks)
 
     # -----------------------------------------------------
-    # STEP 5 : Count Vehicles
+    # STEP 6 : Vehicle Counting
     # -----------------------------------------------------
     analytics.update(tracks)
 
     # -----------------------------------------------------
-    # STEP 6 : CSV Logger
+    # STEP 7 : CSV Logging
     # -----------------------------------------------------
     timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
 
@@ -165,12 +178,12 @@ while True:
             logged_ids.add(track.id)
 
     # -----------------------------------------------------
-    # STEP 7 : Draw Vehicles
+    # STEP 8 : Draw Vehicles
     # -----------------------------------------------------
     frame = visualizer.draw(frame, tracks, speeds)
 
     # -----------------------------------------------------
-    # STEP 8 : Draw Counting Line
+    # STEP 9 : Counting Line
     # -----------------------------------------------------
     cv2.line(
         frame,
@@ -191,69 +204,62 @@ while True:
     )
 
     # -----------------------------------------------------
-    # STEP 9 : HUD Panel
-   # Background
-    cv2.rectangle(frame, (15, 15), (310, 215), (35, 35, 35), -1)
+    # STEP 10 : ORBITAL HUD
+    # -----------------------------------------------------
 
-    cv2.putText(frame, "ORBITAL AI", (25, 35),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0,255,255), 2)
+    # Background
+    cv2.rectangle(
+        frame,
+        (15, 15),
+        (320, 235),
+        (35, 35, 35),
+        -1
+    )
 
-    cv2.putText(frame,
-                f"TOTAL COUNT : {analytics.total_count}",
-                (25, 60),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                (255,255,255),
-                2)
-
-    cv2.putText(frame,
-                f"VISIBLE : {density.total_visible()}",
-                (25, 82),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                (200,255,200),
-                2)
-
-    cv2.putText(frame,
-                f"Lane 1 : {lane_counts[1]}",
-                (25, 112),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                (0,255,0),
-                2)
-
-    cv2.putText(frame,
-                f"Lane 2 : {lane_counts[2]}",
-                (25, 137),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                (255,255,0),
-                2)
-
-    cv2.putText(frame,
-                f"Lane 3 : {lane_counts[3]}",
-                (25, 162),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                (0,165,255),
-                2)
-
-    cv2.putText(frame,
-                f"Lane 4 : {lane_counts[4]}",
-                (25, 187),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                (255,0,255),
-                2)
+    # Title
     cv2.putText(
-    frame,
-    "CONGESTION",
-    (25, 105),
-    cv2.FONT_HERSHEY_SIMPLEX,
-    0.50,
-    (200, 200, 200),
-    1
-)
+        frame,
+        "ORBITAL AI",
+        (25, 35),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.75,
+        (0, 255, 255),
+        2
+    )
+
+    # Total Count
+    cv2.putText(
+        frame,
+        f"TOTAL COUNT : {analytics.total_count}",
+        (25, 60),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        2
+    )
+
+    # Visible Vehicles
+    cv2.putText(
+        frame,
+        f"VISIBLE : {density.total_visible()}",
+        (25, 82),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (200, 255, 200),
+        2
+    )
+
+    # Congestion
+    cv2.putText(
+        frame,
+        "CONGESTION",
+        (25, 105),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.50,
+        (200, 200, 200),
+        1
+    )
+
     cv2.putText(
         frame,
         level,
@@ -262,17 +268,66 @@ while True:
         0.60,
         level_color,
         2
-    )    
-        # -----------------------------------------------------
-        # STEP 10 : Save Frame
-        # -----------------------------------------------------
-        writer.write(frame)
+    )
+
+    # Lane 1
+    cv2.putText(
+        frame,
+        f"Lane 1 : {lane_counts[1]}",
+        (25, 130),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (0, 255, 0),
+        2
+    )
+
+    # Lane 2
+    cv2.putText(
+        frame,
+        f"Lane 2 : {lane_counts[2]}",
+        (25, 155),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 0),
+        2
+    )
+
+    # Lane 3
+    cv2.putText(
+        frame,
+        f"Lane 3 : {lane_counts[3]}",
+        (25, 180),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (0, 165, 255),
+        2
+    )
+
+    # Lane 4
+    cv2.putText(
+        frame,
+        f"Lane 4 : {lane_counts[4]}",
+        (25, 205),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 0, 255),
+        2
+    )
+
+    # -----------------------------------------------------
+    # STEP 11 : Save Frame
+    # -----------------------------------------------------
+    writer.write(frame)
+
+# =========================================================
+# Cleanup
+# =========================================================
 
 cap.release()
 writer.release()
 
 print("=" * 55)
-print("ORBITAL AI - Sprint 5 Completed Successfully")
+print("ORBITAL AI - Sprint 6.4 Completed Successfully")
 print(f"Vehicles Counted : {analytics.total_count}")
 print(f"CSV Entries      : {len(logged_ids)}")
 print(f"Output Video     : {OUTPUT_VIDEO}")

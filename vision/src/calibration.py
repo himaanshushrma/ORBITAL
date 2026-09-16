@@ -2,7 +2,7 @@
 =========================================================
 ORBITAL AI
 Perspective Calibration
-Sprint 6.1
+Sprint 8.0 (Dynamic)
 =========================================================
 """
 
@@ -11,49 +11,67 @@ import numpy as np
 
 
 class PerspectiveCalibrator:
-    """
-    Converts image coordinates into Bird's Eye coordinates
-    using a homography matrix.
-    """
 
     def __init__(self):
 
-        # -------- Source points (1920x1080 traffic video) --------
-        self.src = np.float32([
-            [620, 430],      # Top Left
-            [1295, 430],     # Top Right
-            [1880, 1035],    # Bottom Right
-            [80, 1035]       # Bottom Left
-        ])
+        self.matrix = None
+        self.src = None
 
-        # -------- Destination rectangle --------
-        self.dst = np.float32([
+    # --------------------------------------------------
+    # Create homography from 4 clicked points
+    # Order:
+    # Top Left
+    # Top Right
+    # Bottom Right
+    # Bottom Left
+    # --------------------------------------------------
+    def compute(self, points, width=1920, height=1080):
+
+        if len(points) != 4:
+            raise ValueError("Exactly 4 points required")
+
+        self.src = np.float32(points)
+
+        dst = np.float32([
             [300, 0],
             [1620, 0],
             [1620, 1080],
             [300, 1080]
         ])
 
-        # Compute homography matrix
-        self.matrix = cv2.getPerspectiveTransform(self.src, self.dst)
+        self.matrix = cv2.getPerspectiveTransform(
+            self.src,
+            dst
+        )
 
-    # -----------------------------------------------------
-    # Convert one image point into Bird's Eye coordinates
-    # -----------------------------------------------------
+        return self.matrix
+
+    # --------------------------------------------------
+    # Convert image point
+    # --------------------------------------------------
     def transform_point(self, point):
+
+        if self.matrix is None:
+            return point
 
         pts = np.array([[point]], dtype=np.float32)
 
-        warped = cv2.perspectiveTransform(pts, self.matrix)
+        warped = cv2.perspectiveTransform(
+            pts,
+            self.matrix
+        )
 
         x, y = warped[0][0]
 
-        return (float(x), float(y))
+        return float(x), float(y)
 
-    # -----------------------------------------------------
-    # Warp an entire frame (for debugging)
-    # -----------------------------------------------------
+    # --------------------------------------------------
+    # Bird eye frame
+    # --------------------------------------------------
     def warp(self, frame):
+
+        if self.matrix is None:
+            return frame
 
         return cv2.warpPerspective(
             frame,

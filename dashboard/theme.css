@@ -1,0 +1,104 @@
+
+/* ======================================================
+   ORBITAL AI — NASA COMMAND CENTER THEME
+   Sprint 9
+====================================================== */
+
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* Background */
+.stApp{
+    background:#050A14;
+    color:#E5F7FF;
+}
+
+/* Hide Streamlit menu */
+#MainMenu, footer, header{
+    visibility:hidden;
+}
+
+/* Main title */
+h1,h2,h3{
+    font-family:'Orbitron',sans-serif;
+    color:#00E5FF;
+    letter-spacing:1px;
+}
+
+/* Caption */
+p,span,div{
+    font-family:'JetBrains Mono',monospace;
+}
+
+/* Upload box */
+[data-testid="stFileUploader"]{
+    border:1px solid #00E5FF;
+    border-radius:12px;
+    background:#0B1220;
+    padding:12px;
+}
+
+/* Buttons */
+.stButton button{
+    background:linear-gradient(90deg,#00E5FF,#0077FF);
+    color:white;
+    border:none;
+    border-radius:12px;
+    font-weight:700;
+    font-family:'Orbitron';
+    height:52px;
+}
+
+.stButton button:hover{
+    box-shadow:0 0 20px #00E5FF;
+}
+
+/* Metric Cards */
+[data-testid="metric-container"]{
+    background:#0B1220;
+    border:1px solid #163A59;
+    border-radius:14px;
+    padding:18px;
+    box-shadow:0 0 12px rgba(0,229,255,.15);
+}
+
+/* Metric label */
+[data-testid="metric-container"] label{
+    color:#7DD3FC;
+    font-family:'Orbitron';
+}
+
+/* Metric value */
+[data-testid="metric-container"] div{
+    color:#FFFFFF;
+}
+
+/* Tables */
+table{
+    border-collapse:collapse;
+    width:100%;
+}
+
+thead{
+    background:#00B8D9;
+    color:#051019;
+}
+
+tbody tr{
+    background:#0B1220;
+}
+
+tbody td{
+    border-bottom:1px solid #1E293B;
+}
+
+/* Progress bar */
+.stProgress > div > div{
+    background:#00E5FF;
+}
+
+/* Success */
+.stAlert{
+    background:#052C2C;
+    border:1px solid #00E5FF;
+}

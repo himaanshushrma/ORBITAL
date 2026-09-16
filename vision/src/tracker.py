@@ -1,94 +1,68 @@
 """
 =========================================================
 ORBITAL AI
-ByteTrack History Manager
-Sprint 4.1
+Tracker Module
+Sprint 7.0 (Compatible)
 
 Author : Himanshu Sharma
-
-Purpose:
-Store the movement history of every ByteTrack ID.
-ByteTrack generates IDs; this file only maintains trails.
 =========================================================
 """
 
 from dataclasses import dataclass, field
+from typing import List, Tuple
 
 
-# =========================================================
-# Track Object
-# =========================================================
 @dataclass
 class Track:
-    """
-    Represents one tracked vehicle.
-    """
-
     id: int
-    bbox: tuple
     class_id: int
-    confidence: float
+    bbox: Tuple[int, int, int, int]
+    history: List[Tuple[int, int]] = field(default_factory=list)
+    lane: int = 0
 
-    # Stores previous center points for trajectory drawing
-    history: list = field(default_factory=list)
 
-
-# =========================================================
-# Vehicle Tracker
-# =========================================================
 class VehicleTracker:
 
     def __init__(self):
-        """
-        Dictionary format
-
-        histories = {
-            12 : [(x1,y1),(x2,y2)...],
-            45 : [...]
-        }
-        """
         self.histories = {}
 
-        # Maximum trail length
-        self.max_history = 30
-
-    # -----------------------------------------------------
-    # Update histories using ByteTrack IDs
-    # -----------------------------------------------------
+    # ------------------------------------------------------
+    # Update Tracks
+    # ------------------------------------------------------
     def update(self, detections):
 
-        tracks = []
+        current_tracks = []
+
+        if len(detections) == 0:
+            return current_tracks
 
         for det in detections:
 
             track_id = det["id"]
+            class_id = det["class_id"]
 
             x1, y1, x2, y2 = det["bbox"]
 
-            # Calculate center point
-            cx = (x1 + x2) // 2
-            cy = (y1 + y2) // 2
+            center = (
+                (x1 + x2) // 2,
+                (y1 + y2) // 2
+            )
 
-            # Create history if vehicle appears first time
             if track_id not in self.histories:
                 self.histories[track_id] = []
 
-            # Append latest position
-            self.histories[track_id].append((cx, cy))
+            self.histories[track_id].append(center)
 
             # Keep only last 30 points
-            if len(self.histories[track_id]) > self.max_history:
-                self.histories[track_id].pop(0)
+            self.histories[track_id] = self.histories[track_id][-30:]
 
-            # Convert detection dictionary into Track object
-            tracks.append(
+            current_tracks.append(
                 Track(
                     id=track_id,
-                    bbox=det["bbox"],
-                    class_id=det["class_id"],
-                    confidence=det["confidence"],
-                    history=self.histories[track_id]
+                    class_id=class_id,
+                    bbox=(x1, y1, x2, y2),
+                    history=self.histories[track_id].copy()
                 )
             )
 
-        return tracks
+        return current_tracks
