@@ -6,7 +6,7 @@ import tempfile
 import streamlit as st
 
 # ======================================================
-# STREAMLIT CONFIG (FIRST)
+# STREAMLIT CONFIG (MUST BE FIRST)
 # ======================================================
 
 st.set_page_config(
@@ -56,7 +56,7 @@ if "mission_start" not in st.session_state:
     st.session_state.mission_start = None
 
 # ======================================================
-# NASA HEADER
+# HEADER
 # ======================================================
 
 st.markdown("""
@@ -90,7 +90,7 @@ EDGE • UAV • COMPUTER VISION • TRAFFIC INTELLIGENCE
 st.write("")
 
 # ======================================================
-# VIDEO UPLOAD
+# UPLOAD
 # ======================================================
 
 uploaded = st.file_uploader(
@@ -109,7 +109,6 @@ if uploaded:
         f.write(uploaded.read())
 
     st.success("Video uploaded successfully.")
-
     st.video(temp_video)
 
     st.write("")
@@ -125,8 +124,6 @@ if uploaded:
     ):
 
         st.session_state.mission_start = time.time()
-
-        # ---------- Layout ----------
 
         left, right = st.columns([3, 1])
 
@@ -146,7 +143,9 @@ if uploaded:
         progress = st.progress(0)
 
         frame_counter = 0
+
         output_path = None
+        report_path = None
 
         # ==================================================
         # LIVE STREAM
@@ -166,8 +165,6 @@ if uploaded:
                 channels="RGB",
                 use_container_width=True
             )
-
-            # ---------------- KPIs ----------------
 
             total_box.metric(
                 "TOTAL VEHICLES",
@@ -189,11 +186,9 @@ if uploaded:
                 int(data["fps"])
             )
 
-            # ---------------- TIMER ----------------
-
             elapsed = int(
-                time.time()
-                - st.session_state.mission_start
+                time.time() -
+                st.session_state.mission_start
             )
 
             mins = elapsed // 60
@@ -203,8 +198,6 @@ if uploaded:
                 "MISSION TIME",
                 f"{mins:02}:{secs:02}"
             )
-
-            # ---------------- LANE TABLE ----------------
 
             lane_box.markdown(
                 f"""
@@ -224,6 +217,7 @@ if uploaded:
             )
 
             output_path = data["output"]
+            report_path = data["report"]
 
         # ==================================================
         # COMPLETE
@@ -233,12 +227,24 @@ if uploaded:
 
         st.success("🎯 Mission Completed Successfully")
 
-        with open(output_path, "rb") as f:
+        col1, col2 = st.columns(2)
 
-            st.download_button(
-                "⬇ DOWNLOAD PROCESSED VIDEO",
-                data=f,
-                file_name="ORBITAL_processed.mp4",
-                mime="video/mp4",
-                use_container_width=True
-            )
+        with col1:
+            with open(output_path, "rb") as f:
+                st.download_button(
+                    "🎥 DOWNLOAD VIDEO",
+                    data=f,
+                    file_name="ORBITAL_processed.mp4",
+                    mime="video/mp4",
+                    use_container_width=True
+                )
+
+        with col2:
+            with open(report_path, "rb") as f:
+                st.download_button(
+                    "📄 DOWNLOAD REPORT",
+                    data=f,
+                    file_name="ORBITAL_Traffic_Report.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )

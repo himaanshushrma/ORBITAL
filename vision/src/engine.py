@@ -9,6 +9,7 @@ from speed import SpeedEstimator
 from lane import LaneDetector
 from density import LaneDensity
 from congestion import CongestionAnalyzer
+from report import TrafficReport
 
 
 def stream_video(video_path):
@@ -26,7 +27,7 @@ def stream_video(video_path):
     fps = cap.get(cv2.CAP_PROP_FPS)
 
     # -----------------------------
-    # Output Video
+    # Output Folder
     # -----------------------------
     base = os.path.dirname(os.path.abspath(__file__))
 
@@ -34,6 +35,7 @@ def stream_video(video_path):
     os.makedirs(output_dir, exist_ok=True)
 
     output_video = os.path.join(output_dir, "detection.mp4")
+    output_pdf = os.path.join(output_dir, "ORBITAL_Report.pdf")
 
     writer = cv2.VideoWriter(
         output_video,
@@ -43,15 +45,12 @@ def stream_video(video_path):
     )
 
     # -----------------------------
-    # Initialize AI Modules
+    # AI Modules
     # -----------------------------
     detector = VehicleDetector()
     tracker = VehicleTracker()
 
-    analytics = TrafficAnalytics(
-        line_y=int(height * 0.5)
-    )
-
+    analytics = TrafficAnalytics(line_y=int(height * 0.5))
     visualizer = Visualizer()
 
     lane_detector = LaneDetector()
@@ -62,6 +61,13 @@ def stream_video(video_path):
         fps=fps,
         pixels_per_meter=8.5
     )
+
+    report = TrafficReport()
+
+    # Statistics for report
+    avg_speed = 0
+    lane_counts = {1: 0, 2: 0, 3: 0, 4: 0}
+    level = "LOW"
 
     # =============================
     # MAIN LOOP
@@ -91,20 +97,19 @@ def stream_video(video_path):
             density.total_visible()
         )
 
-        # Speed Estimation
+        # Speed
         speeds = speed_estimator.update(tracks)
 
-        # Vehicle Counting
+        if len(speeds) > 0:
+            avg_speed = int(sum(speeds.values()) / len(speeds))
+
+        # Counting
         analytics.update(tracks)
 
-        # Draw Everything
-        frame = visualizer.draw(
-            frame,
-            tracks,
-            speeds
-        )
+        # Draw
+        frame = visualizer.draw(frame, tracks, speeds)
 
-        # Counting Line
+        # Count Line
         cv2.line(
             frame,
             (0, analytics.line_y),
@@ -123,7 +128,7 @@ def stream_video(video_path):
             2
         )
 
-        # Save Output
+        # Save Frame
         writer.write(frame)
 
         # Stream to Dashboard
@@ -134,11 +139,24 @@ def stream_video(video_path):
             "lanes": lane_counts,
             "congestion": level,
             "fps": fps,
-            "output": output_video
+            "output": output_video,
+            "report": output_pdf
         }
 
     # =============================
-    # Cleanup
+    # Generate PDF Report
     # =============================
+    report.generate(
+        output_pdf,
+        {
+            "total": analytics.total_count,
+            "avg_speed": avg_speed,
+            "visible": density.total_visible(),
+            "congestion": level,
+            "lanes": lane_counts
+        }
+    )
+
+    # Cleanup
     cap.release()
     writer.release()

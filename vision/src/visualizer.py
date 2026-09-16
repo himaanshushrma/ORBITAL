@@ -2,16 +2,18 @@
 =========================================================
 ORBITAL AI
 Visualizer Module
-Sprint 10.0
+Sprint 11.1
 
 Author : Himanshu Sharma
 
-Draws:
-- Lane polygons
-- Bounding boxes
-- Vehicle IDs
-- Speed
-- Confidence
+Features
+---------------------------------------------------------
+• Lane polygon overlay
+• Vehicle bounding boxes
+• Vehicle IDs
+• Speed labels
+• Trajectory trails
+• Center points
 =========================================================
 """
 
@@ -24,14 +26,15 @@ class Visualizer:
     def __init__(self):
 
         self.colors = {
-            1: (0, 255, 0),      # Lane 1
-            2: (255, 255, 0),    # Lane 2
-            3: (0, 165, 255),    # Lane 3
-            4: (255, 0, 255)     # Lane 4
+            1: (0, 255, 0),
+            2: (255, 255, 0),
+            3: (0, 165, 255),
+            4: (255, 0, 255)
         }
 
-        # 1920x1080 reference lane polygons
+        # Reference polygons (1920×1080)
         self.lane_polygons = {
+
             1: np.array([
                 [80,1035],
                 [620,430],
@@ -61,7 +64,7 @@ class Visualizer:
         }
 
     # --------------------------------------------------
-    # Scale polygons to any resolution
+    # Scale polygons to current resolution
     # --------------------------------------------------
 
     def _scale_polygon(self, polygon, width, height):
@@ -70,13 +73,14 @@ class Visualizer:
         sy = height / 1080
 
         pts = polygon.astype(np.float32)
-        pts[:, 0] *= sx
-        pts[:, 1] *= sy
+
+        pts[:,0] *= sx
+        pts[:,1] *= sy
 
         return pts.astype(np.int32)
 
     # --------------------------------------------------
-    # Draw lane overlay
+    # Draw Lane Overlay
     # --------------------------------------------------
 
     def draw_lanes(self, frame):
@@ -132,7 +136,7 @@ class Visualizer:
         return frame
 
     # --------------------------------------------------
-    # Draw vehicles
+    # Draw Vehicles + Trails
     # --------------------------------------------------
 
     def draw(self, frame, tracks, speeds):
@@ -145,9 +149,40 @@ class Visualizer:
 
             lane = getattr(track, "lane", 1)
 
-            color = self.colors.get(lane, (255,255,255))
+            color = self.colors.get(
+                lane,
+                (255,255,255)
+            )
 
+            # ==========================================
+            # TRAJECTORY TRAIL
+            # ==========================================
+
+            if hasattr(track, "history"):
+
+                pts = list(track.history)
+
+                for i in range(1, len(pts)):
+
+                    alpha = i / len(pts)
+
+                    thickness = max(
+                        1,
+                        int(alpha * 4)
+                    )
+
+                    cv2.line(
+                        frame,
+                        pts[i-1],
+                        pts[i],
+                        color,
+                        thickness
+                    )
+
+            # ==========================================
             # Bounding Box
+            # ==========================================
+
             cv2.rectangle(
                 frame,
                 (x1, y1),
@@ -156,7 +191,9 @@ class Visualizer:
                 2
             )
 
-            speed = int(speeds.get(track.id, 0))
+            speed = int(
+                speeds.get(track.id, 0)
+            )
 
             label = (
                 f"ID {track.id} | "
@@ -189,7 +226,10 @@ class Visualizer:
                 1
             )
 
+            # ==========================================
             # Center Point
+            # ==========================================
+
             cx = int((x1+x2)/2)
             cy = int((y1+y2)/2)
 
