@@ -2,7 +2,7 @@
 =========================================================
 ORBITAL AI
 Main Vision Pipeline
-Sprint 4.4 (Final)
+Sprint 4.5 (Corrected)
 
 Author : Himanshu Sharma
 
@@ -11,16 +11,19 @@ Pipeline
 Video
    │
    ▼
-YOLO11 Detection + ByteTrack IDs
+YOLO11 Detection
    │
    ▼
-Tracker (Trajectory History)
+ByteTrack IDs
    │
    ▼
-Traffic Analytics (Line Counting)
+Traffic Analytics
    │
    ▼
-Visualizer (HUD + Boxes + Trails)
+Visualizer + HUD
+   │
+   ▼
+MP4 + CSV Output
 =========================================================
 """
 
@@ -30,6 +33,7 @@ from detector import VehicleDetector
 from tracker import VehicleTracker
 from analytics import TrafficAnalytics
 from visualizer import Visualizer
+from logger import TrafficLogger
 
 
 # =========================================================
@@ -40,18 +44,19 @@ detector = VehicleDetector()
 
 tracker = VehicleTracker()
 
-# 1080p video → counting line
-analytics = TrafficAnalytics(line_y=760)
+# 1080p video → count line at Y = 540
+analytics = TrafficAnalytics(line_y=540)
 
 visualizer = Visualizer()
 
+logger = TrafficLogger()
+
 
 # =========================================================
-# Input / Output Paths
+# Video Paths
 # =========================================================
 
 INPUT_VIDEO = "../data/traffic.mp4"
-
 OUTPUT_VIDEO = "../output/detection.mp4"
 
 
@@ -77,7 +82,23 @@ writer = cv2.VideoWriter(
 
 
 # =========================================================
-# Main Processing Loop
+# Vehicle Class Names
+# =========================================================
+
+VEHICLE_NAMES = {
+    2: "Car",
+    3: "Bike",
+    5: "Bus",
+    7: "Truck"
+}
+
+
+# Prevent duplicate CSV entries
+logged_ids = set()
+
+
+# =========================================================
+# Main Loop
 # =========================================================
 
 while True:
@@ -90,26 +111,52 @@ while True:
     # -----------------------------------------------------
     # STEP 1 : Detect Vehicles
     # -----------------------------------------------------
+
     detections = detector.detect(frame)
 
     # -----------------------------------------------------
-    # STEP 2 : Update Track Histories
+    # STEP 2 : Generate Stable Tracks
     # -----------------------------------------------------
+
     tracks = tracker.update(detections)
 
     # -----------------------------------------------------
-    # STEP 3 : Count Vehicles
+    # STEP 3 : Traffic Analytics
+    # IMPORTANT:
+    # Count using TRACKS, not detections.
     # -----------------------------------------------------
+
     total_count = analytics.update(tracks)
 
     # -----------------------------------------------------
-    # STEP 4 : Draw Boxes + Labels + Trails
+    # STEP 4 : Log Newly Counted Vehicles
+    # Each ID is written only once.
     # -----------------------------------------------------
+
+    timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
+
+    for track in tracks:
+
+        if track.id in analytics.counted_ids and track.id not in logged_ids:
+
+            logger.log(
+                vehicle_id=track.id,
+                vehicle_type=VEHICLE_NAMES.get(track.class_id, "Vehicle"),
+                timestamp=timestamp
+            )
+
+            logged_ids.add(track.id)
+
+    # -----------------------------------------------------
+    # STEP 5 : Draw Bounding Boxes + Trails
+    # -----------------------------------------------------
+
     frame = visualizer.draw(frame, tracks)
 
     # -----------------------------------------------------
-    # STEP 5 : Draw Counting Line
+    # STEP 6 : Draw Counting Line
     # -----------------------------------------------------
+
     cv2.line(
         frame,
         (0, analytics.line_y),
@@ -118,11 +165,10 @@ while True:
         3
     )
 
-    # Label for counting line
     cv2.putText(
         frame,
         "COUNT LINE",
-        (20, analytics.line_y - 12),
+        (20, analytics.line_y - 10),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
         (0, 0, 255),
@@ -130,39 +176,81 @@ while True:
     )
 
     # -----------------------------------------------------
-    # STEP 6 : HUD Panel
+    # STEP 7 : Advanced HUD
     # -----------------------------------------------------
+
     cv2.rectangle(
         frame,
         (15, 15),
-        (250, 90),
+        (280, 180),
         (35, 35, 35),
         -1
     )
 
     cv2.putText(
         frame,
-        "TOTAL VEHICLES",
-        (30, 40),
+        "ORBITAL AI",
+        (25, 35),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (220, 220, 220),
+        0.75,
+        (0, 255, 255),
         2
     )
 
     cv2.putText(
         frame,
-        str(total_count),
-        (30, 75),
+        f"TOTAL : {analytics.total_count}",
+        (25, 60),
         cv2.FONT_HERSHEY_SIMPLEX,
-        1.2,
+        0.65,
+        (255, 255, 255),
+        2
+    )
+
+    cv2.putText(
+        frame,
+        f"Cars   : {analytics.class_counts[2]}",
+        (25, 85),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.60,
         (0, 255, 0),
-        3
+        2
+    )
+
+    cv2.putText(
+        frame,
+        f"Bikes  : {analytics.class_counts[3]}",
+        (25, 110),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.60,
+        (255, 255, 0),
+        2
+    )
+
+    cv2.putText(
+        frame,
+        f"Buses  : {analytics.class_counts[5]}",
+        (25, 135),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.60,
+        (0, 165, 255),
+        2
+    )
+
+    cv2.putText(
+        frame,
+        f"Trucks : {analytics.class_counts[7]}",
+        (25, 160),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.60,
+        (255, 0, 255),
+        2
     )
 
     # -----------------------------------------------------
-    # STEP 7 : Save Frame
+    # STEP 8 : Save Frame
     # -----------------------------------------------------
+
     writer.write(frame)
 
 
@@ -174,7 +262,8 @@ cap.release()
 writer.release()
 
 print("=" * 55)
-print("ORBITAL AI - Sprint 4 Completed Successfully")
-print(f"Vehicles Counted : {total_count}")
-print(f"Output Saved     : {OUTPUT_VIDEO}")
+print("ORBITAL AI - Sprint 4.5 Completed Successfully")
+print(f"Vehicles Counted : {analytics.total_count}")
+print(f"CSV Entries      : {len(logged_ids)}")
+print(f"Output Video     : {OUTPUT_VIDEO}")
 print("=" * 55)

@@ -1,0 +1,10 @@
+tracker_type: bytetrack
+
+track_high_thresh: 0.35
+track_low_thresh: 0.10
+new_track_thresh: 0.35
+
+match_thresh: 0.85
+track_buffer: 80
+
+fuse_score: True

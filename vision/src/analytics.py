@@ -2,61 +2,72 @@
 =========================================================
 ORBITAL AI
 Traffic Analytics Engine
-Sprint 4.2
-
-Author : Himanshu Sharma
+Sprint 5.1
 
 Purpose:
-Count each vehicle exactly ONCE using ByteTrack IDs.
+Count every vehicle exactly once when it crosses
+the virtual counting line.
 =========================================================
 """
 
 
 class TrafficAnalytics:
 
-    def __init__(self, line_y=760):
+    def __init__(self, line_y=540):
         """
-        line_y : Horizontal counting line
-        For 1920x1080 video -> 760 works well
+        line_y : Vertical position of counting line
         """
-
         self.line_y = line_y
 
-        # Vehicles already counted
-        self.counted_ids = set()
-
-        # Previous Y coordinate of every vehicle
-        self.previous_y = {}
-
-        # Total vehicles
+        # Total vehicles counted
         self.total_count = 0
 
-    # ------------------------------------------------------
-    # Update Counter
-    # ------------------------------------------------------
+        # IDs that have already been counted
+        self.counted_ids = set()
+
+        # Per-class statistics
+        self.class_counts = {
+            2: 0,   # Car
+            3: 0,   # Bike
+            5: 0,   # Bus
+            7: 0    # Truck
+        }
+
+    # --------------------------------------------------
+    # Update counts using tracked vehicles
+    # --------------------------------------------------
     def update(self, tracks):
 
         for track in tracks:
 
-            tid = track.id
-
-            # Need at least 2 points to detect movement
+            # Need at least two points to know direction
             if len(track.history) < 2:
                 continue
 
-            prev_y = track.history[-2][1]
-            curr_y = track.history[-1][1]
+            # Current vehicle ID
+            tid = track.id
 
-            self.previous_y[tid] = curr_y
-
-            # Count only once
+            # Skip if already counted
             if tid in self.counted_ids:
                 continue
 
-            # Vehicle crossed downward
-            if prev_y < self.line_y and curr_y >= self.line_y:
+            # Previous and current center positions
+            prev_x, prev_y = track.history[-2]
+            curr_x, curr_y = track.history[-1]
+
+            # Vehicle crossed the line moving downward
+            crossed = (
+                prev_y < self.line_y and
+                curr_y >= self.line_y
+            )
+
+            if crossed:
 
                 self.total_count += 1
                 self.counted_ids.add(tid)
+
+                # Increase class counter
+                if track.class_id in self.class_counts:
+                    self.class_counts[track.class_id] += 1
 
         return self.total_count
